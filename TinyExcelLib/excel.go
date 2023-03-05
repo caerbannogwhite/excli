@@ -138,24 +138,27 @@ func (efh *ExcelFileHandler) readContent() error {
 	}
 
 	// read shared strings
-	r, err = efh.sharedStrings.zipFile.Open()
-	if err != nil {
-		return err
-	}
-
-	sharedStringsContent := make([]byte, efh.sharedStrings.zipFile.UncompressedSize64)
-	tot = 0
-	for tot < len(sharedStringsContent) {
-		if n, err = r.Read(sharedStringsContent[tot:]); err != nil {
+	// but the shared strings file might not be present
+	if efh.sharedStrings.zipFile != nil {
+		r, err = efh.sharedStrings.zipFile.Open()
+		if err != nil {
 			return err
 		}
-		tot += n
-	}
 
-	if err = r.Close(); err != nil {
-		return err
+		sharedStringsContent := make([]byte, efh.sharedStrings.zipFile.UncompressedSize64)
+		tot = 0
+		for tot < len(sharedStringsContent) {
+			if n, err = r.Read(sharedStringsContent[tot:]); err != nil {
+				return err
+			}
+			tot += n
+		}
+
+		if err = r.Close(); err != nil {
+			return err
+		}
+		efh.sharedStrings.content = &sharedStringsContent
 	}
-	efh.sharedStrings.content = &sharedStringsContent
 
 	// Other files
 	for i, f := range efh.otherFiles {
@@ -218,11 +221,20 @@ func (efh *ExcelFileHandler) renameSheets() error {
 
 func (efh *ExcelFileHandler) loadSharedStrings() error {
 	var ss ExcelXML_sharedstrings__
-	if err := xml.Unmarshal(*efh.sharedStrings.content, &ss); err != nil {
-		return err
-	}
 
-	efh.sharedStringsLoaded = ss
+	if efh.sharedStrings.zipFile != nil {
+		if err := xml.Unmarshal(*efh.sharedStrings.content, &ss); err != nil {
+			return err
+		}
+		efh.sharedStringsLoaded = ss
+	} else
+
+	// initialize shared strings file
+	{
+		efh.sharedStringsLoaded.XMLName = xml.Name{Local: "sst"}
+		efh.sharedStringsLoaded.Xmlns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+		efh.sharedStringsLoaded.Si = make([]ExcelXML_Si__, 0)
+	}
 
 	return nil
 }
