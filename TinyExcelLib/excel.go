@@ -11,6 +11,12 @@ import (
 	"strings"
 )
 
+const XML_HEADER = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+`
+
+const WORK_BOOK_FILE_NAME = "xl/workbook.xml"
+const SHARED_STRINGS_FILE_NAME = "xl/sharedStrings.xml"
+
 type ExcelFileHandler struct {
 	excelFilePath       string
 	workbook            internalFile
@@ -18,6 +24,8 @@ type ExcelFileHandler struct {
 	sharedStrings       internalFile
 	otherFiles          []internalFile
 	sharedStringsLoaded ExcelXML_sharedstrings__
+
+	XmlHeaderBytes []byte
 }
 
 type internalFile struct {
@@ -51,12 +59,12 @@ func ReadExcelFile(path string) (*ExcelFileHandler, error) {
 		} else
 
 		// Get workbook
-		if f.Name == "xl/workbook.xml" {
+		if f.Name == WORK_BOOK_FILE_NAME {
 			workbook = internalFile{zipFile: f}
 		} else
 
 		// Get shared strings file
-		if f.Name == "xl/sharedStrings.xml" {
+		if f.Name == SHARED_STRINGS_FILE_NAME {
 			sharedStrings = internalFile{zipFile: f}
 		} else
 
@@ -72,6 +80,8 @@ func ReadExcelFile(path string) (*ExcelFileHandler, error) {
 		sheets:        sheets,
 		sharedStrings: sharedStrings,
 		otherFiles:    otherFiles,
+
+		XmlHeaderBytes: []byte(XML_HEADER),
 	}
 
 	if err = efh.readContent(); err != nil {
@@ -313,7 +323,7 @@ func (efh *ExcelFileHandler) InsertNewRow(sheetName string, index int, cells []C
 	}
 
 	if innerRowIndex == -1 {
-		innerRowIndex = len(ws.SheetData.List) - 1
+		innerRowIndex = len(ws.SheetData.List)
 	}
 
 	startRows := ws.SheetData.List[0:innerRowIndex]
@@ -335,10 +345,18 @@ func (efh *ExcelFileHandler) InsertNewRow(sheetName string, index int, cells []C
 	// Update sheet dimension attribute
 	originalDim := strings.Split(ws.Dimension.Ref, ":")
 
-	bottomRighDimUpdated := getMaxExcelIndex(
-		originalDim[1],
-		ws.SheetData.List[len(ws.SheetData.List)-1].Cols[len(ws.SheetData.List[len(ws.SheetData.List)-1].Cols)-1].R,
-	)
+	var bottomRighDimUpdated string
+	if len(originalDim) == 2 {
+		bottomRighDimUpdated = getMaxExcelIndex(
+			originalDim[1],
+			ws.SheetData.List[len(ws.SheetData.List)-1].Cols[len(ws.SheetData.List[len(ws.SheetData.List)-1].Cols)-1].R,
+		)
+	} else {
+		bottomRighDimUpdated = getMaxExcelIndex(
+			originalDim[0],
+			ws.SheetData.List[len(ws.SheetData.List)-1].Cols[len(ws.SheetData.List[len(ws.SheetData.List)-1].Cols)-1].R,
+		)
+	}
 
 	ws.Dimension.Ref = fmt.Sprintf("%s:%s", originalDim[0], bottomRighDimUpdated)
 
@@ -438,10 +456,14 @@ func (efh *ExcelFileHandler) SaveAs(path string) error {
 
 	// workbook
 	// efh.workbook.zipFile.SetMode(os.ModePerm)
-	w, err = zipWriter.Create(efh.workbook.zipFile.Name)
+	w, err = zipWriter.Create(WORK_BOOK_FILE_NAME)
 	if err != nil {
 		panic(err)
 	}
+	// _, err = w.Write(efh.XmlHeaderBytes)
+	// if err != nil {
+	// 	panic(err)
+	// }
 	_, err = w.Write(*efh.workbook.content)
 	if err != nil {
 		panic(err)
@@ -454,6 +476,10 @@ func (efh *ExcelFileHandler) SaveAs(path string) error {
 		if err != nil {
 			panic(err)
 		}
+		_, err = w.Write(efh.XmlHeaderBytes)
+		if err != nil {
+			panic(err)
+		}
 		_, err = w.Write(*sheet.content)
 		if err != nil {
 			panic(err)
@@ -461,19 +487,25 @@ func (efh *ExcelFileHandler) SaveAs(path string) error {
 	}
 
 	// shared strings
-	// efh.sharedStrings.zipFile.SetMode(os.ModePerm)
-	w, err = zipWriter.Create(efh.sharedStrings.zipFile.Name)
-	if err != nil {
-		panic(err)
-	}
+	if len(efh.sharedStringsLoaded.Si) > 0 {
+		// efh.sharedStrings.zipFile.SetMode(os.ModePerm)
+		w, err = zipWriter.Create(SHARED_STRINGS_FILE_NAME)
+		if err != nil {
+			panic(err)
+		}
 
-	buff, err = xml.Marshal(efh.sharedStringsLoaded)
-	if err != nil {
-		panic(err)
-	}
-	_, err = w.Write(buff)
-	if err != nil {
-		panic(err)
+		buff, err = xml.Marshal(efh.sharedStringsLoaded)
+		if err != nil {
+			panic(err)
+		}
+		_, err = w.Write(efh.XmlHeaderBytes)
+		if err != nil {
+			panic(err)
+		}
+		_, err = w.Write(buff)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// other files

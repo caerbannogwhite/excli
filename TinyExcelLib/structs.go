@@ -42,25 +42,25 @@ type ExcelXML_worksheet_unmarshal__ struct {
 	Xmlns       string   `xml:"xmlns,attr"`
 	R           string   `xml:"r,attr"`
 	MC          string   `xml:"mc,attr"`
-	MCIgnorable string   `xml:"Ignorable,attr,omitempty"`
+	MCIgnorable string   `xml:"Ignorable,attr"`
 	X14ac       string   `xml:"x14ac,attr"`
 	XR          string   `xml:"xr,attr"`
 	XR2         string   `xml:"xr2,attr"`
 	XR3         string   `xml:"xr3,attr"`
-	XRUid       string   `xml:"uid,attr,omitempty"`
+	XRUid       string   `xml:"uid,attr"`
 
 	SheetPr       ExcelXML_sheetpr__       `xml:"sheetPr"`
 	Dimension     ExcelXML_dimension__     `xml:"dimension"`
 	SheetViews    ExcelXML_sheetviews__    `xml:"sheetViews"`
 	SheetFormatPr ExcelXML_sheetformatpr__ `xml:"sheetFormatPr"`
 
-	Cols      *ExcelXML_cols__     `xml:"cols,omitempty"`
+	Cols      *ExcelXML_cols__     `xml:"cols"`
 	SheetData ExcelXML_sheetdata__ `xml:"sheetData"`
 
 	PhoneticPr  ExcelXML_phoneticpr__          `xml:"phoneticPr"`
 	PageMargins ExcelXML_pagemargins__         `xml:"pageMargins"`
 	PageSetup   ExcelXML_pagesetup_unmarshal__ `xml:"pageSetup"`
-	Drawing     ExcelXML_drawing_unmarshal__   `xml:"drawing"`
+	Drawing     *ExcelXML_drawing_unmarshal__  `xml:"drawing"`
 }
 
 type ExcelXML_worksheet_marshal__ struct {
@@ -70,9 +70,9 @@ type ExcelXML_worksheet_marshal__ struct {
 	MC          string   `xml:"xmlns:mc,attr"`
 	MCIgnorable string   `xml:"mc:Ignorable,attr,omitempty"`
 	X14ac       string   `xml:"xmlns:x14ac,attr"`
-	XR          string   `xml:"xmlns:xr,attr"`
-	XR2         string   `xml:"xmlns:xr2,attr"`
-	XR3         string   `xml:"xmlns:xr3,attr"`
+	XR          string   `xml:"xmlns:xr,attr,omitempty"`
+	XR2         string   `xml:"xmlns:xr2,attr,omitempty"`
+	XR3         string   `xml:"xmlns:xr3,attr,omitempty"`
 	XRUid       string   `xml:"xr:uid,attr,omitempty"`
 
 	SheetPr       ExcelXML_sheetpr__       `xml:"sheetPr"`
@@ -86,7 +86,7 @@ type ExcelXML_worksheet_marshal__ struct {
 	PhoneticPr  ExcelXML_phoneticpr__        `xml:"phoneticPr"`
 	PageMargins ExcelXML_pagemargins__       `xml:"pageMargins"`
 	PageSetup   ExcelXML_pagesetup_marshal__ `xml:"pageSetup"`
-	Drawing     ExcelXML_drawing_marshal__   `xml:"drawing"`
+	Drawing     *ExcelXML_drawing_marshal__  `xml:"drawing,omitempty"`
 }
 
 type ExcelXML_sheetpr__ struct {
@@ -178,6 +178,13 @@ type ExcelXML_drawing_marshal__ struct {
 }
 
 func (ws *ExcelXML_worksheet_unmarshal__) Marshal() ([]byte, error) {
+
+	var drawing *ExcelXML_drawing_marshal__ = nil
+	if ws.Drawing != nil {
+		tmp := ExcelXML_drawing_marshal__(*ws.Drawing)
+		drawing = &tmp
+	}
+
 	return xml.Marshal(ExcelXML_worksheet_marshal__{
 		XMLName:     ws.XMLName,
 		Xmlns:       ws.Xmlns,
@@ -201,7 +208,7 @@ func (ws *ExcelXML_worksheet_unmarshal__) Marshal() ([]byte, error) {
 		PhoneticPr:  ws.PhoneticPr,
 		PageMargins: ws.PageMargins,
 		PageSetup:   ExcelXML_pagesetup_marshal__(ws.PageSetup),
-		Drawing:     ExcelXML_drawing_marshal__(ws.Drawing),
+		Drawing:     drawing,
 	})
 }
 
