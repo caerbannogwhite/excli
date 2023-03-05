@@ -9,7 +9,8 @@ func main() {
 		panic(err)
 	}
 
-	wb.InsertNewRow("Sheet1", 1, []tinyexcellib.Cell{{Value: "Hello"}, {Value: "World"}})
+	wb.InsertNewRow("Sheet1", 2, []tinyexcellib.Cell{{Value: "Hello"}, {Value: "World"}})
+	// wb.InsertNewRow("Sheet1", 2, []tinyexcellib.Cell{{Value: 7493840.89}, {Value: 53.5380}, {Value: 7949.322}})
 	wb.UpdateSheet("Sheet1")
 
 	wb.Save()
